@@ -1,229 +1,151 @@
-// Firebase Configuration - Replace with your actual Firebase config
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { 
+    getFirestore, 
+    collection, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    updateDoc, 
+    query, 
+    where, 
+    getDocs 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { 
+    getAuth, 
+    signInAnonymously, 
+    onAuthStateChanged 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+// Firebase Configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDemoKey-ReplaceWithActualKey",
-    authDomain: "Control.firebaseapp.com",
-    projectId: "Control",
-    storageBucket: "Control.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
+    apiKey: "AIzaSyDSdp2kTxfS1YYxneulH7JeobGbHOdsjgc",
+    authDomain: "control-rebuild.firebaseapp.com",
+    projectId: "control-rebuild",
+    storageBucket: "control-rebuild.firebasestorage.app",
+    messagingSenderId: "978116999118",
+    appId: "1:978116999118:web:924c440301d9d30adcdd9f",
+    measurementId: "G-NLFSE2CG06"
 };
 
-// Mock Firebase SDK implementation
-// In production, replace this with actual Firebase SDK imports
-class MockFirebase {
-    constructor() {
-        this.firestore = new MockFirestore();
-        this.auth = new MockAuth();
-    }
-}
-
-class MockFirestore {
-    constructor() {
-        this.collections = new Map();
-        this.initData();
-    }
-
-    initData() {
-        // Initialize with some sample users
-        const users = [
-            {
-                id: 'demo-user-1234-abcd-5678-efgh',
-                name: 'Demo User',
-                email: 'demo@example.com',
-                plan: 'Pro Plan',
-                memberSince: 'Oct 2023',
-                tasksCompleted: 247,
-                hoursSaved: 12.5,
-                successRate: 98,
-                password: 'hashed_demo_password',
-                passwordLastChanged: new Date('2023-10-15'),
-                createdAt: new Date('2023-10-01'),
-                isActive: true
-            },
-            {
-                id: 'test-user-9876-wxyz-4321-stuv',
-                name: 'Test User',
-                email: 'test@example.com',
-                plan: 'Free Plan',
-                memberSince: 'Nov 2023',
-                tasksCompleted: 45,
-                hoursSaved: 2.3,
-                successRate: 92,
-                password: 'hashed_test_password',
-                passwordLastChanged: new Date('2023-11-10'),
-                createdAt: new Date('2023-11-01'),
-                isActive: true
-            }
-        ];
-
-        const usersCollection = users.map(user => ({
-            id: user.id,
-            data: () => ({ ...user }),
-            ...user
-        }));
-
-        this.collections.set('users', usersCollection);
-    }
-
-    collection(name) {
-        return new MockCollection(this.collections.get(name) || []);
-    }
-}
-
-class MockCollection {
-    constructor(data) {
-        this.data = data;
-    }
-
-    where(field, operator, value) {
-        const filtered = this.data.filter(item => {
-            if (operator === '==') {
-                return item[field] === value;
-            } else if (operator === '>=') {
-                return item[field] >= value;
-            }
-            return false;
-        });
-        return new MockCollection(filtered);
-    }
-
-    get() {
-        return Promise.resolve({
-            docs: this.data.map(item => ({
-                id: item.id,
-                data: () => ({ ...item })
-            }))
-        });
-    }
-
-    add(data) {
-        const id = this.generateId();
-        const newItem = { id, ...data };
-        this.data.push(newItem);
-        return Promise.resolve({ id });
-    }
-
-    doc(id) {
-        const item = this.data.find(item => item.id === id);
-        return new MockDocument(item, id);
-    }
-
-    generateId() {
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        let result = '';
-        for (let i = 0; i < 24; i++) {
-            if (i > 0 && i % 4 === 0) result += '-';
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    }
-}
-
-class MockDocument {
-    constructor(data, id) {
-        this.data = data;
-        this.id = id;
-    }
-
-    get() {
-        if (this.data) {
-            return Promise.resolve({
-                exists: true,
-                id: this.id,
-                data: () => ({ ...this.data })
-            });
-        } else {
-            return Promise.resolve({
-                exists: false,
-                id: this.id,
-                data: () => ({})
-            });
-        }
-    }
-
-    set(data) {
-        Object.assign(this.data, data);
-        return Promise.resolve();
-    }
-
-    update(data) {
-        Object.assign(this.data, data);
-        return Promise.resolve();
-    }
-
-    delete() {
-        const index = this.data.findIndex(item => item.id === this.id);
-        if (index > -1) {
-            this.data.splice(index, 1);
-        }
-        return Promise.resolve();
-    }
-}
-
-class MockAuth {
-    constructor() {
-        this.currentUser = null;
-    }
-
-    signInWithEmailAndPassword(email, password) {
-        // Mock authentication - always succeeds for demo
-        return Promise.resolve({
-            user: {
-                uid: 'demo-user-1234-abcd-5678-efgh',
-                email: email
-            }
-        });
-    }
-
-    createUserWithEmailAndPassword(email, password) {
-        // Mock user creation
-        return Promise.resolve({
-            user: {
-                uid: 'new-user-' + Date.now(),
-                email: email
-            }
-        });
-    }
-
-    signOut() {
-        this.currentUser = null;
-        return Promise.resolve();
-    }
-
-    onAuthStateChanged(callback) {
-        // Immediately call with no user (signed out)
-        callback(null);
-    }
-}
-
 // Initialize Firebase
-const firebase = new MockFirebase();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-// Export Firebase services
-const db = firebase.firestore;
-const auth = firebase.auth;
+// Auto sign-in anonymously
+signInAnonymously(auth).catch(console.error);
 
-// Utility functions
-export const db = db;
-export const auth = auth;
-export const firebase = firebase;
+/**
+ * Generate unique 12-character Entry ID
+ */
+function generateEntryId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 12; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
 
-// User management functions
+/**
+ * Hash password (simple version - use bcrypt in production)
+ */
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Verify Entry ID exists and get user data
+ */
+export async function verifyEntryID(entryId) {
+    try {
+        const normalized = entryId.replace(/[-\s]/g, '').toUpperCase();
+        
+        if (normalized.length !== 12) {
+            return {
+                success: false,
+                message: 'Invalid Entry ID format'
+            };
+        }
+        
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('entryId', '==', normalized));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            return {
+                success: false,
+                message: 'Entry ID not found'
+            };
+        }
+        
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data();
+        
+        if (!userData.isActive) {
+            return {
+                success: false,
+                message: 'Account has been deactivated'
+            };
+        }
+        
+        // Update last login
+        await updateDoc(doc(db, 'users', userDoc.id), {
+            lastLogin: new Date().toISOString(),
+            lastLoginTimestamp: Date.now()
+        });
+        
+        return {
+            success: true,
+            user: {
+                id: userDoc.id,
+                entryId: userData.entryId,
+                name: userData.name,
+                email: userData.email,
+                plan: userData.plan,
+                memberSince: userData.memberSince,
+                tasksCompleted: userData.tasksCompleted || 0,
+                hoursSaved: userData.hoursSaved || 0,
+                successRate: userData.successRate || 0,
+                passwordHash: userData.passwordHash
+            }
+        };
+    } catch (error) {
+        console.error('Entry ID verification error:', error);
+        return {
+            success: false,
+            message: 'Verification failed. Please try again.'
+        };
+    }
+}
+
+/**
+ * Get user by document ID
+ */
 export async function getUserById(userId) {
     try {
-        const doc = await db.collection('users').doc(userId).get();
-        if (doc.exists) {
-            return {
-                success: true,
-                user: doc.data()
-            };
-        } else {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        
+        if (!userDoc.exists()) {
             return {
                 success: false,
                 message: 'User not found'
             };
         }
+        
+        return {
+            success: true,
+            user: {
+                id: userDoc.id,
+                ...userDoc.data()
+            }
+        };
     } catch (error) {
+        console.error('Get user error:', error);
         return {
             success: false,
             message: error.message
@@ -231,19 +153,74 @@ export async function getUserById(userId) {
     }
 }
 
+/**
+ * Get user by Entry ID
+ */
+export async function getUserByEntryId(entryId) {
+    try {
+        const normalized = entryId.replace(/[-\s]/g, '').toUpperCase();
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('entryId', '==', normalized));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            return {
+                success: false,
+                message: 'User not found'
+            };
+        }
+        
+        const userDoc = querySnapshot.docs[0];
+        return {
+            success: true,
+            user: {
+                id: userDoc.id,
+                ...userDoc.data()
+            }
+        };
+    } catch (error) {
+        console.error('Get user by entry ID error:', error);
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+/**
+ * Create new user
+ */
 export async function createUser(userData) {
     try {
-        const docRef = await db.collection('users').add({
-            ...userData,
-            createdAt: new Date(),
-            isActive: true
+        const entryId = generateEntryId();
+        const userRef = doc(collection(db, 'users'));
+        
+        // Hash password
+        const passwordHash = await hashPassword(userData.password);
+        
+        await setDoc(userRef, {
+            entryId: entryId,
+            name: userData.name,
+            email: userData.email,
+            plan: userData.plan || 'Free Plan',
+            memberSince: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            tasksCompleted: 0,
+            hoursSaved: 0,
+            successRate: 0,
+            passwordHash: passwordHash,
+            passwordLastChanged: new Date().toISOString(),
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            createdTimestamp: Date.now()
         });
         
         return {
             success: true,
-            userId: docRef.id
+            userId: userRef.id,
+            entryId: entryId
         };
     } catch (error) {
+        console.error('Create user error:', error);
         return {
             success: false,
             message: error.message
@@ -251,42 +228,105 @@ export async function createUser(userData) {
     }
 }
 
+/**
+ * Update user data
+ */
 export async function updateUser(userId, updateData) {
     try {
-        await db.collection('users').doc(userId).update({
+        await updateDoc(doc(db, 'users', userId), {
             ...updateData,
-            updatedAt: new Date()
+            updatedAt: new Date().toISOString(),
+            updatedTimestamp: Date.now()
+        });
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Update user error:', error);
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+/**
+ * Change password
+ */
+export async function changePassword(userId, currentPassword, newPassword) {
+    try {
+        // Get user
+        const userResult = await getUserById(userId);
+        if (!userResult.success) {
+            return userResult;
+        }
+        
+        // Verify current password
+        const currentHash = await hashPassword(currentPassword);
+        if (currentHash !== userResult.user.passwordHash) {
+            return {
+                success: false,
+                message: 'Current password is incorrect'
+            };
+        }
+        
+        // Hash new password
+        const newHash = await hashPassword(newPassword);
+        
+        // Update password
+        await updateDoc(doc(db, 'users', userId), {
+            passwordHash: newHash,
+            passwordLastChanged: new Date().toISOString()
+        });
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Change password error:', error);
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+/**
+ * Authenticate user with Entry ID and password
+ */
+export async function authenticateUser(entryId, password) {
+    try {
+        const userResult = await getUserByEntryId(entryId);
+        if (!userResult.success) {
+            return {
+                success: false,
+                message: 'Invalid Entry ID or password'
+            };
+        }
+        
+        // Verify password
+        const passwordHash = await hashPassword(password);
+        if (passwordHash !== userResult.user.passwordHash) {
+            return {
+                success: false,
+                message: 'Invalid Entry ID or password'
+            };
+        }
+        
+        // Update last login
+        await updateDoc(doc(db, 'users', userResult.user.id), {
+            lastLogin: new Date().toISOString(),
+            lastLoginTimestamp: Date.now()
         });
         
         return {
-            success: true
+            success: true,
+            user: userResult.user
         };
     } catch (error) {
+        console.error('Authentication error:', error);
         return {
             success: false,
-            message: error.message
+            message: 'Authentication failed'
         };
     }
 }
 
-export async function authenticateUser(userId) {
-    try {
-        const result = await getUserById(userId);
-        return result;
-    } catch (error) {
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
-
-export function generateUserId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 24; i++) {
-        if (i > 0 && i % 4 === 0) result += '-';
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
+export { db, auth };
