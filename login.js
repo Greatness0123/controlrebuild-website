@@ -1,4 +1,5 @@
-import { authenticateUser } from './firebase-service.js';
+// Import Firebase service
+import { getUserById } from './firebase-service.js';
 
 class LoginPage {
     constructor() {
@@ -15,36 +16,44 @@ class LoginPage {
             await this.login();
         });
 
+        // Auto-focus user ID field
         userIdInput.focus();
 
+        // Format user ID as user types
         userIdInput.addEventListener('input', (e) => {
             this.formatUserId(e.target);
         });
     }
 
     formatUserId(input) {
-        let value = input.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
+        // Remove non-alphanumeric characters except hyphens
+        let value = input.value.replace(/[^A-Za-z0-9-]/g, '').toLowerCase();
         
-        // Auto-format as XXXX-XXXX-XXXX
-        const parts = value.replace(/-/g, '').match(/.{1,4}/g);
-        if (parts) {
-            value = parts.join('-');
+        // Auto-format as xxxx-xxxx-xxxx-xxxx-xxxx-xxxx (24 chars with hyphens)
+        if (value.length > 4 && value.length <= 8) {
+            value = value.slice(0, 4) + '-' + value.slice(4);
+        } else if (value.length > 8 && value.length <= 12) {
+            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
+        } else if (value.length > 12 && value.length <= 16) {
+            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16);
+        } else if (value.length > 16 && value.length <= 20) {
+            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16) + '-' + value.slice(16, 20);
+        } else if (value.length > 20) {
+            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16) + '-' + value.slice(16, 20) + '-' + value.slice(20, 24);
         }
         
         input.value = value;
     }
 
     async login() {
-        const userId = document.getElementById('userId').value.trim().replace(/-/g, '');
+        const userId = document.getElementById('userId').value.trim();
         const password = document.getElementById('password').value;
+        const errorMessage = document.getElementById('errorMessage');
+        const loginBtn = document.getElementById('loginBtn');
 
+        // Validation
         if (!userId || !password) {
-            this.showError('Please enter both Entry ID and password');
-            return;
-        }
-
-        if (userId.length !== 12) {
-            this.showError('Invalid Entry ID format');
+            this.showError('Please enter both User ID and password');
             return;
         }
 
@@ -52,21 +61,30 @@ class LoginPage {
         this.hideError();
 
         try {
-            const result = await authenticateUser(userId, password);
+            console.log('Attempting login with User ID:', userId);
+            
+            // Get user from database
+            const result = await getUserById(userId);
+
+            console.log('Login result:', result);
 
             if (result.success) {
-                // Save user data to localStorage
-                localStorage.setItem('currentUser', JSON.stringify(result.user));
+                const user = result.user;
+                
+                // Store user in session
+                sessionStorage.setItem('currentUser', JSON.stringify(user));
+
+                console.log('User found and logged in:', user.name);
                 
                 // Redirect to dashboard
                 window.location.href = 'index.html';
             } else {
-                this.showError(result.message || 'Invalid Entry ID or password');
+                this.showError('Invalid User ID or password');
+                this.setLoading(false);
             }
         } catch (error) {
             console.error('Login error:', error);
             this.showError('An error occurred during login. Please try again.');
-        } finally {
             this.setLoading(false);
         }
     }
@@ -94,6 +112,7 @@ class LoginPage {
     }
 }
 
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new LoginPage();
 });
