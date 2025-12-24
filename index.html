@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control - Dashboard</title>
-    <!-- Include Icon Set -->
-    <link rel="stylesheet" href="styles.css">
     <style>
         * {
             margin: 0;
@@ -102,6 +100,30 @@
 
         .btn-secondary:hover {
             background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 1rem;
         }
 
         /* Main Content */
@@ -464,7 +486,6 @@
             }
         }
     </style>
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -483,8 +504,14 @@
         </div>
     </nav>
 
+    <!-- Loading State -->
+    <div class="loading-container" id="loadingContainer" style="display: none;">
+        <div class="spinner"></div>
+        <span>Loading your dashboard...</span>
+    </div>
+
     <!-- Main Content -->
-    <main>
+    <main id="mainContent" style="display: none;">
         <div class="dashboard-container">
             <!-- Profile Card -->
             <div class="profile-card">
@@ -498,22 +525,22 @@
                             </svg>
                         </div>
                     </div>
-                    <div class="profile-name" id="profileName">Alex Johnson</div>
-                    <div class="profile-email" id="profileEmail">alex.johnson@example.com</div>
-                    <div class="profile-since">Member since Oct 2023</div>
+                    <div class="profile-name" id="profileName">Loading...</div>
+                    <div class="profile-email" id="profileEmail">Loading...</div>
+                    <div class="profile-since" id="profileSince">Loading...</div>
                 </div>
                 
                 <div class="profile-stats">
                     <div class="stat">
-                        <div class="stat-value">247</div>
+                        <div class="stat-value" id="tasksCompleted">0</div>
                         <div class="stat-label">Tasks Completed</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-value">12.5</div>
+                        <div class="stat-value" id="hoursSaved">0</div>
                         <div class="stat-label">Hours Saved</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-value">98%</div>
+                        <div class="stat-value" id="successRate">0%</div>
                         <div class="stat-label">Success Rate</div>
                     </div>
                 </div>
@@ -534,7 +561,7 @@
                     <div class="detail-item">
                         <span class="detail-label">User ID</span>
                         <div class="detail-value">
-                            <span class="user-id" id="userId">8f92-jks8-229a-k1z1-glass</span>
+                            <span class="user-id" id="userId">Loading...</span>
                             <button class="copy-btn" id="copyUserId">Copy</button>
                         </div>
                     </div>
@@ -545,21 +572,21 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="#667eea">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                             </svg>
-                            <span class="plan-badge">Pro Plan</span>
+                            <span class="plan-badge" id="planBadge">Loading...</span>
                         </div>
                     </div>
                     
                     <div class="detail-item">
                         <span class="detail-label">Billing</span>
                         <div class="detail-value">
-                            <span>Billed annually</span>
+                            <span id="billingInfo">Loading...</span>
                         </div>
                     </div>
                     
                     <div class="detail-item">
                         <span class="detail-label">Status</span>
                         <div class="detail-value">
-                            <span class="status-badge">Active</span>
+                            <span class="status-badge" id="statusBadge">Loading...</span>
                         </div>
                     </div>
                 </div>
@@ -577,7 +604,7 @@
                     <div class="security-item">
                         <div class="security-info">
                             <h4>Password</h4>
-                            <p id="passwordInfo">Last changed 3 months ago</p>
+                            <p id="passwordInfo">Loading...</p>
                         </div>
                         <button class="btn btn-secondary" id="changePasswordBtn">Change Password</button>
                     </div>
@@ -618,6 +645,241 @@
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
 
-    <script src="dashboard.js"></script>
+    <script>
+        // Mock FirebaseService for demo
+        class FirebaseService {
+            constructor() {
+                this.isInitialized = true;
+                this.currentUser = null;
+            }
+
+            async signIn(userId) {
+                const users = {
+                    'demo-user-1234-abcd-5678-efgh': {
+                        id: 'demo-user-1234-abcd-5678-efgh',
+                        name: 'Demo User',
+                        email: 'demo@example.com',
+                        plan: 'Pro Plan',
+                        memberSince: 'Oct 2023',
+                        tasksCompleted: 247,
+                        hoursSaved: 12.5,
+                        successRate: 98,
+                        passwordLastChanged: new Date('2024-09-15'),
+                        isActive: true
+                    },
+                    'test-user-9876-wxyz-4321-stuv': {
+                        id: 'test-user-9876-wxyz-4321-stuv',
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        plan: 'Free Plan',
+                        memberSince: 'Nov 2023',
+                        tasksCompleted: 45,
+                        hoursSaved: 2.3,
+                        successRate: 92,
+                        passwordLastChanged: new Date('2024-11-10'),
+                        isActive: true
+                    }
+                };
+
+                if (users[userId]) {
+                    this.currentUser = users[userId];
+                    sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                    return { success: true, user: this.currentUser };
+                }
+                return { success: false, message: 'User not found' };
+            }
+
+            async getCurrentUser() {
+                if (this.currentUser) return this.currentUser;
+                
+                const stored = sessionStorage.getItem('currentUser');
+                if (stored) {
+                    try {
+                        this.currentUser = JSON.parse(stored);
+                        return this.currentUser;
+                    } catch (error) {
+                        sessionStorage.removeItem('currentUser');
+                        return null;
+                    }
+                }
+                return null;
+            }
+
+            async signOut() {
+                this.currentUser = null;
+                sessionStorage.removeItem('currentUser');
+                return { success: true };
+            }
+
+            async changePassword(userId, currentPassword, newPassword) {
+                if (this.currentUser && this.currentUser.id === userId) {
+                    this.currentUser.passwordLastChanged = new Date();
+                    sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                    return { success: true };
+                }
+                return { success: false, message: 'Failed to change password' };
+            }
+        }
+
+        // Dashboard Controller
+        class Dashboard {
+            constructor() {
+                this.firebase = new FirebaseService();
+                this.currentUser = null;
+                this.init();
+            }
+
+            async init() {
+                this.showLoading(true);
+                await this.checkAuthentication();
+            }
+
+            async checkAuthentication() {
+                this.currentUser = await this.firebase.getCurrentUser();
+                
+                if (!this.currentUser) {
+                    // Redirect to signup after a short delay
+                    setTimeout(() => {
+                        window.location.href = 'signup.html';
+                    }, 1000);
+                    return;
+                }
+
+                this.setupEventListeners();
+                this.updateUI();
+                this.showLoading(false);
+            }
+
+            setupEventListeners() {
+                document.getElementById('copyUserId').addEventListener('click', () => {
+                    this.copyToClipboard('userId');
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    this.logout();
+                });
+
+                document.getElementById('changePasswordBtn').addEventListener('click', () => {
+                    this.showPasswordModal();
+                });
+
+                document.getElementById('closeModal').addEventListener('click', () => {
+                    this.hidePasswordModal();
+                });
+
+                document.getElementById('passwordForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.changePassword();
+                });
+
+                document.getElementById('passwordModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'passwordModal') {
+                        this.hidePasswordModal();
+                    }
+                });
+            }
+
+            updateUI() {
+                if (!this.currentUser) return;
+
+                const [firstName, ...rest] = this.currentUser.name.split(' ');
+                const initials = (firstName[0] + (rest[0]?.[0] || '')).toUpperCase();
+                
+                document.getElementById('profileInitials').textContent = initials;
+                document.getElementById('profileName').textContent = this.currentUser.name;
+                document.getElementById('profileEmail').textContent = this.currentUser.email;
+                document.getElementById('userId').textContent = this.currentUser.id;
+                document.getElementById('planBadge').textContent = this.currentUser.plan;
+                document.getElementById('billingInfo').textContent = 'Billed ' + (this.currentUser.plan.includes('Pro') ? 'annually' : 'monthly');
+                document.getElementById('statusBadge').textContent = this.currentUser.isActive ? 'Active' : 'Inactive';
+
+                document.getElementById('tasksCompleted').textContent = this.currentUser.tasksCompleted;
+                document.getElementById('hoursSaved').textContent = this.currentUser.hoursSaved;
+                document.getElementById('successRate').textContent = this.currentUser.successRate + '%';
+
+                const lastChanged = new Date(this.currentUser.passwordLastChanged);
+                const monthsAgo = Math.floor((Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                document.getElementById('passwordInfo').textContent = 
+                    `Last changed ${monthsAgo} month${monthsAgo !== 1 ? 's' : ''} ago`;
+                
+                document.getElementById('profileSince').textContent = `Member since ${this.currentUser.memberSince}`;
+            }
+
+            copyToClipboard(elementId) {
+                const text = document.getElementById(elementId).textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    this.showToast('User ID copied to clipboard!', 'success');
+                }).catch(() => {
+                    this.showToast('Failed to copy to clipboard', 'error');
+                });
+            }
+
+            showPasswordModal() {
+                document.getElementById('passwordModal').classList.add('show');
+                document.getElementById('passwordForm').reset();
+            }
+
+            hidePasswordModal() {
+                document.getElementById('passwordModal').classList.remove('show');
+            }
+
+            async changePassword() {
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (newPassword.length < 8) {
+                    this.showToast('Password must be at least 8 characters long', 'error');
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    this.showToast('Passwords do not match', 'error');
+                    return;
+                }
+
+                const result = await this.firebase.changePassword(
+                    this.currentUser.id,
+                    document.getElementById('currentPassword').value,
+                    newPassword
+                );
+
+                if (result.success) {
+                    this.showToast('Password changed successfully!', 'success');
+                    this.hidePasswordModal();
+                    this.updateUI();
+                } else {
+                    this.showToast(result.message || 'Failed to change password', 'error');
+                }
+            }
+
+            async logout() {
+                await this.firebase.signOut();
+                this.showToast('Logged out successfully', 'success');
+                setTimeout(() => {
+                    window.location.href = 'signup.html';
+                }, 1000);
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.className = `toast ${type}`;
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            showLoading(show) {
+                document.getElementById('loadingContainer').style.display = show ? 'flex' : 'none';
+                document.getElementById('mainContent').style.display = show ? 'none' : 'block';
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new Dashboard();
+        });
+    </script>
 </body>
 </html>
