@@ -1,4 +1,5 @@
-import { getUserById, updateUser, changePassword } from './firebase-service.js';
+// Import Firebase service
+import { getUserById, updateUser } from './firebase-service.js';
 
 class Dashboard {
     constructor() {
@@ -8,41 +9,57 @@ class Dashboard {
 
     async init() {
         // Check authentication
-        const stored = localStorage.getItem('currentUser');
-        if (!stored) {
-            window.location.href = 'login.html';
+        this.currentUser = await this.getCurrentUser();
+        
+        if (!this.currentUser) {
+            console.log('No user found, redirecting to signup');
+            // Redirect to signup if not authenticated
+            window.location.href = 'signup.html';
             return;
         }
 
-        try {
-            const userData = JSON.parse(stored);
-            
-            // Verify user still exists in Firebase
-            const result = await getUserById(userData.id);
-            if (result.success) {
-                this.currentUser = result.user;
-                this.setupEventListeners();
-                this.updateUI();
-            } else {
-                localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
+        console.log('User authenticated:', this.currentUser.name);
+        this.setupEventListeners();
+        this.updateUI();
+    }
+
+    async getCurrentUser() {
+        // Check session storage first
+        const stored = sessionStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const userData = JSON.parse(stored);
+                // Verify user still exists in database
+                const result = await getUserById(userData.id);
+                if (result.success) {
+                    return result.user;
+                } else {
+                    // User no longer exists, clear session
+                    sessionStorage.removeItem('currentUser');
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error parsing stored user data:', error);
+                sessionStorage.removeItem('currentUser');
+                return null;
             }
-        } catch (error) {
-            console.error('Init error:', error);
-            localStorage.removeItem('currentUser');
-            window.location.href = 'login.html';
         }
+        
+        return null;
     }
 
     setupEventListeners() {
+        // Copy User ID
         document.getElementById('copyUserId').addEventListener('click', () => {
-            this.copyToClipboard();
+            this.copyToClipboard('userId');
         });
 
+        // Logout
         document.getElementById('logoutBtn').addEventListener('click', () => {
             this.logout();
         });
 
+        // Password modal
         document.getElementById('changePasswordBtn').addEventListener('click', () => {
             this.showPasswordModal();
         });
@@ -56,6 +73,7 @@ class Dashboard {
             this.changePassword();
         });
 
+        // Close modal on outside click
         document.getElementById('passwordModal').addEventListener('click', (e) => {
             if (e.target.id === 'passwordModal') {
                 this.hidePasswordModal();
@@ -66,55 +84,45 @@ class Dashboard {
     updateUI() {
         if (!this.currentUser) return;
 
-        // Profile initials
-        const initials = this.currentUser.name
-            .split(' ')
-            .map(n => n[0])
-            .join('')
-            .toUpperCase();
-        document.getElementById('profileInitials').textContent = initials;
+        // Update profile information
+        const [firstName, ...rest] = this.currentUser.name.split(' ');
+        const initials = (firstName[0] + (rest[0]?.[0] || '')).toUpperCase();
         
-        // Profile info
+        document.getElementById('profileInitials').textContent = initials;
         document.getElementById('profileName').textContent = this.currentUser.name;
         document.getElementById('profileEmail').textContent = this.currentUser.email;
-        
-        // Entry ID (formatted)
-        const formatted = this.currentUser.entryId.match(/.{1,4}/g).join('-');
-        document.getElementById('userId').textContent = formatted;
+        document.getElementById('userId').textContent = this.currentUser.id;
+        document.getElementById('planBadge').textContent = this.currentUser.plan;
+        document.getElementById('billingInfo').textContent = this.currentUser.plan.includes('Pro') ? 'Billed annually' : 'Billed monthly';
+        document.getElementById('statusBadge').textContent = this.currentUser.isActive ? 'Active' : 'Inactive';
+        document.getElementById('profileSince').textContent = `Member since ${this.currentUser.memberSince}`;
 
-        // Stats
-        document.querySelector('.stat:nth-child(1) .stat-value').textContent = 
-            this.currentUser.tasksCompleted || 0;
-        document.querySelector('.stat:nth-child(2) .stat-value').textContent = 
-            (this.currentUser.hoursSaved || 0).toFixed(1);
-        document.querySelector('.stat:nth-child(3) .stat-value').textContent = 
-            (this.currentUser.successRate || 0) + '%';
+        // Update stats
+        document.getElementById('tasksCompleted').textContent = this.currentUser.tasksCompleted;
+        document.getElementById('hoursSaved').textContent = this.currentUser.hoursSaved;
+        document.getElementById('successRate').textContent = this.currentUser.successRate + '%';
 
-        // Plan
-        document.getElementById('userPlan').textContent = this.currentUser.plan || 'Free Plan';
-
-        // Password info
-        if (this.currentUser.passwordLastChanged) {
-            const lastChanged = new Date(this.currentUser.passwordLastChanged);
-            const monthsAgo = Math.floor((new Date() - lastChanged) / (1000 * 60 * 60 * 24 * 30));
-            document.getElementById('passwordInfo').textContent = 
-                `Last changed ${monthsAgo} month${monthsAgo !== 1 ? 's' : ''} ago`;
-        }
+        // Update password info
+        const lastChanged = new Date(this.currentUser.passwordLastChanged);
+        const monthsAgo = Math.floor((new Date() - lastChanged) / (1000 * 60 * 60 * 24 * 30));
+        document.getElementById('passwordInfo').textContent = 
+            `Last changed ${monthsAgo} month${monthsAgo !== 1 ? 's' : ''} ago`;
     }
 
-    copyToClipboard() {
-        const text = document.getElementById('userId').textContent;
+    copyToClipboard(elementId) {
+        const text = document.getElementById(elementId).textContent;
         
         navigator.clipboard.writeText(text).then(() => {
-            this.showToast('Entry ID copied to clipboard!', 'success');
+            this.showToast('User ID copied to clipboard!', 'success');
         }).catch(() => {
+            // Fallback for older browsers
             const textArea = document.createElement('textarea');
             textArea.value = text;
             document.body.appendChild(textArea);
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            this.showToast('Entry ID copied to clipboard!', 'success');
+            this.showToast('User ID copied to clipboard!', 'success');
         });
     }
 
@@ -132,6 +140,7 @@ class Dashboard {
         const newPassword = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
+        // Validation
         if (newPassword.length < 8) {
             this.showToast('Password must be at least 8 characters long', 'error');
             return;
@@ -143,23 +152,19 @@ class Dashboard {
         }
 
         try {
-            const result = await changePassword(
-                this.currentUser.id,
-                currentPassword,
-                newPassword
-            );
+            const result = await updateUser(this.currentUser.id, {
+                password: 'hashed_' + newPassword,
+                passwordLastChanged: new Date()
+            });
 
             if (result.success) {
+                // Update cached user data
+                this.currentUser.passwordLastChanged = new Date();
+                sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                
                 this.showToast('Password changed successfully!', 'success');
                 this.hidePasswordModal();
-                
-                // Refresh user data
-                const userResult = await getUserById(this.currentUser.id);
-                if (userResult.success) {
-                    this.currentUser = userResult.user;
-                    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-                    this.updateUI();
-                }
+                this.updateUI(); // Update the "last changed" text
             } else {
                 this.showToast(result.message || 'Failed to change password', 'error');
             }
@@ -170,11 +175,16 @@ class Dashboard {
     }
 
     async logout() {
-        localStorage.removeItem('currentUser');
-        this.showToast('Logged out successfully', 'success');
-        setTimeout(() => {
-            window.location.href = 'login.html';
-        }, 1000);
+        try {
+            sessionStorage.removeItem('currentUser');
+            this.showToast('Logged out successfully', 'success');
+            setTimeout(() => {
+                window.location.href = 'signup.html';
+            }, 1000);
+        } catch (error) {
+            console.error('Logout error:', error);
+            this.showToast('Failed to logout', 'error');
+        }
     }
 
     showToast(message, type = 'success') {
@@ -189,6 +199,10 @@ class Dashboard {
     }
 }
 
+// Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new Dashboard();
 });
+
+// Export for use in other files
+window.Dashboard = Dashboard;
