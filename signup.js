@@ -1,6 +1,3 @@
-// Import Firebase functions
-import { createUser, generateUserId as genUserId } from './firebase-service.js';
-
 class SignupPage {
     constructor() {
         this.selectedPlan = 'Free';
@@ -92,7 +89,7 @@ class SignupPage {
     async signup() {
         const firstName = document.getElementById('firstName').value.trim();
         const lastName = document.getElementById('lastName').value.trim();
-        const email = document.getElementById('email').value.trim();
+        const email = document.getElementById('signupEmail').value.trim();
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
@@ -122,7 +119,7 @@ class SignupPage {
 
         try {
             // Generate unique User ID
-            const userId = genUserId();
+            const userId = generateUserId();
             
             console.log('Generating account for:', firstName, lastName, email);
             console.log('Generated User ID:', userId);
