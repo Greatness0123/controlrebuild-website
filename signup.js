@@ -1,7 +1,101 @@
-import { createUser } from './firebase-service.js';
+// Import Firebase service
+import { createUser, generateUserId } from './firebase-service.js';
+
+class FirebaseService {
+    constructor() {
+        this.isInitialized = true;
+        this.currentUser = null;
+    }
+
+    async signIn(userId) {
+        try {
+            const { getUserById } = await import('./firebase-service.js');
+            const result = await getUserById(userId);
+            if (result.success) {
+                this.currentUser = result.user;
+                sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                return { success: true, user: this.currentUser };
+            }
+            return { success: false, message: result.message || 'User not found' };
+        } catch (error) {
+            console.error('Sign in error:', error);
+            return { success: false, message: 'Authentication failed' };
+        }
+    }
+
+    async signOut() {
+        this.currentUser = null;
+        sessionStorage.removeItem('currentUser');
+        return { success: true };
+    }
+
+    async getCurrentUser() {
+        if (this.currentUser) {
+            return this.currentUser;
+        }
+        
+        const stored = sessionStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const userData = JSON.parse(stored);
+                this.currentUser = userData;
+                return this.currentUser;
+            } catch (error) {
+                console.error('Error parsing stored user data:', error);
+                sessionStorage.removeItem('currentUser');
+                return null;
+            }
+        }
+        
+        return null;
+    }
+
+    async changePassword(userId, currentPassword, newPassword) {
+        try {
+            const { updateUser } = await import('./firebase-service.js');
+            const result = await updateUser(userId, {
+                password: 'hashed_' + newPassword,
+                passwordLastChanged: new Date()
+            });
+
+            if (result.success) {
+                if (this.currentUser && this.currentUser.id === userId) {
+                    this.currentUser.passwordLastChanged = new Date();
+                    sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                }
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Password change error:', error);
+            return { success: false, message: 'Failed to change password' };
+        }
+    }
+
+    async generateUserId() {
+        try {
+            const { generateUserId: genId } = await import('./firebase-service.js');
+            return await genId();
+        } catch (error) {
+            console.error('Error generating user ID:', error);
+            return this.generateLocalUserId();
+        }
+    }
+
+    generateLocalUserId() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 24; i++) {
+            if (i > 0 && i % 4 === 0) result += '-';
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+}
 
 class SignupPage {
     constructor() {
+        this.firebase = new FirebaseService();
         this.selectedPlan = 'Free';
         this.setupEventListeners();
     }
@@ -16,20 +110,24 @@ class SignupPage {
             await this.signup();
         });
 
+        // Password strength indicator
         passwordInput.addEventListener('input', (e) => {
             this.updatePasswordStrength(e.target.value);
         });
 
+        // Plan selection
         document.querySelectorAll('.plan-option').forEach(option => {
             option.addEventListener('click', () => {
                 this.selectPlan(option);
             });
         });
 
-        confirmPasswordInput.addEventListener('input', () => {
+        // Confirm password validation
+        confirmPasswordInput.addEventListener('input', (e) => {
             this.validatePasswords();
         });
 
+        // Auto-focus first name field
         document.getElementById('firstName').focus();
     }
 
@@ -50,13 +148,18 @@ class SignupPage {
         }
 
         let strength = 0;
+        
+        // Length check
         if (password.length >= 8) strength++;
         if (password.length >= 12) strength++;
+        
+        // Character variety checks
         if (/[a-z]/.test(password)) strength++;
         if (/[A-Z]/.test(password)) strength++;
         if (/[0-9]/.test(password)) strength++;
         if (/[^a-zA-Z0-9]/.test(password)) strength++;
 
+        // Update UI
         if (strength <= 2) {
             strengthBar.className = 'password-strength-bar weak';
         } else if (strength <= 4) {
@@ -86,6 +189,7 @@ class SignupPage {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
+        // Validation
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
             this.showError('Please fill in all fields');
             return;
@@ -110,32 +214,47 @@ class SignupPage {
         this.hideMessages();
 
         try {
-            const result = await createUser({
+            // Generate unique User ID
+            const userId = await this.firebase.generateUserId();
+            
+            // Create user account in Firebase
+            const userData = {
+                id: userId,
                 name: `${firstName} ${lastName}`,
                 email: email,
-                password: password,
-                plan: this.selectedPlan + ' Plan'
-            });
+                plan: this.selectedPlan + ' Plan',
+                memberSince: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                tasksCompleted: 0,
+                hoursSaved: 0,
+                successRate: 0,
+                password: 'hashed_' + password, // In real app, this would be properly hashed
+                passwordLastChanged: new Date(),
+                isActive: true
+            };
+
+            // Call Firebase createUser function
+            const result = await createUser(userData);
 
             if (result.success) {
-                this.showSuccessMessage('Account created successfully!');
-                this.displayUserId(result.entryId);
+                // Store current user in session
+                sessionStorage.setItem('currentUser', JSON.stringify(userData));
+
+                // Show success message with User ID
+                this.showSuccessMessage(`Account created successfully! Your User ID is: ${userId}`);
+                this.displayUserId(userId);
+                
+                // Reset form
                 document.getElementById('signupForm').reset();
                 document.getElementById('passwordStrengthBar').className = 'password-strength-bar';
-                
-                // Save to localStorage for auto-login
-                localStorage.setItem('pendingLogin', JSON.stringify({
-                    entryId: result.entryId,
-                    userId: result.userId
-                }));
-                
-                // Redirect after 3 seconds
+
+                // Redirect to login after 3 seconds
                 setTimeout(() => {
                     window.location.href = 'login.html';
                 }, 3000);
             } else {
-                this.showError(result.message || 'Failed to create account');
+                this.showError(result.message || 'Failed to create account. Please try again.');
             }
+
         } catch (error) {
             console.error('Signup error:', error);
             this.showError('An error occurred during signup. Please try again.');
@@ -149,13 +268,11 @@ class SignupPage {
         return re.test(email);
     }
 
-    displayUserId(entryId) {
+    displayUserId(userId) {
         const userIdDisplay = document.getElementById('userIdDisplay');
         const userIdValue = document.getElementById('userIdValue');
         
-        // Format as XXXX-XXXX-XXXX
-        const formatted = entryId.match(/.{1,4}/g).join('-');
-        userIdValue.textContent = formatted;
+        userIdValue.textContent = userId;
         userIdDisplay.classList.add('show');
     }
 
@@ -194,6 +311,7 @@ class SignupPage {
     }
 }
 
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new SignupPage();
 });
