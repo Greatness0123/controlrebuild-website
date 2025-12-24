@@ -1,11 +1,12 @@
 // Firebase Configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDemoKey-ReplaceWithActualKey",
-    authDomain: "Control.firebaseapp.com",
-    projectId: "Control",
-    storageBucket: "Control.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyDSdp2kTxfS1YYxneulH7JeobGbHOdsjgc",
+  authDomain: "control-rebuild.firebaseapp.com",
+  projectId: "control-rebuild",
+  storageBucket: "control-rebuild.firebasestorage.app",
+  messagingSenderId: "978116999118",
+  appId: "1:978116999118:web:924c440301d9d30adcdd9f",
+  measurementId: "G-NLFSE2CG06"
 };
 
 // Mock Firebase SDK implementation
@@ -210,7 +211,7 @@ const db = firebase.firestore;
 const auth = firebase.auth;
 
 // User management functions
-export async function getUserById(userId) {
+async function getUserById(userId) {
     try {
         const doc = await db.collection('users').doc(userId).get();
         if (doc.exists) {
@@ -232,9 +233,9 @@ export async function getUserById(userId) {
     }
 }
 
-export async function createUser(userData) {
+async function createUser(userData) {
     try {
-        const docRef = await db.collection('users').doc(userData.id).set({
+        await db.collection('users').doc(userData.id).set({
             ...userData,
             createdAt: new Date(),
             isActive: true
@@ -254,7 +255,7 @@ export async function createUser(userData) {
     }
 }
 
-export async function updateUser(userId, updateData) {
+async function updateUser(userId, updateData) {
     try {
         await db.collection('users').doc(userId).update({
             ...updateData,
@@ -272,7 +273,7 @@ export async function updateUser(userId, updateData) {
     }
 }
 
-export async function authenticateUser(userId) {
+async function authenticateUser(userId) {
     try {
         const result = await getUserById(userId);
         return result;
@@ -284,7 +285,7 @@ export async function authenticateUser(userId) {
     }
 }
 
-export function generateUserId() {
+function generateUserId() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < 24; i++) {
@@ -293,5 +294,3 @@ export function generateUserId() {
     }
     return result;
 }
-
-export { db, auth, firebase };
