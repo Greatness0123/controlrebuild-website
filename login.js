@@ -1,9 +1,7 @@
-// Import Firebase service (assuming it's shared)
-// In a real app, this would be imported from a shared file
+import { authenticateUser } from './firebase-service.js';
 
 class LoginPage {
     constructor() {
-        this.firebase = new FirebaseService();
         this.setupEventListeners();
     }
 
@@ -17,49 +15,36 @@ class LoginPage {
             await this.login();
         });
 
-        // Auto-focus user ID field
         userIdInput.focus();
 
-        // Format user ID as user types
         userIdInput.addEventListener('input', (e) => {
             this.formatUserId(e.target);
         });
     }
 
     formatUserId(input) {
-        // Remove non-alphanumeric characters except hyphens
         let value = input.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         
-        // Auto-format as XXXX-XXXX-XXXX-XXXX (24 chars with hyphens)
-        if (value.length > 4 && value.length <= 8) {
-            value = value.slice(0, 4) + '-' + value.slice(4);
-        } else if (value.length > 8 && value.length <= 12) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
-        } else if (value.length > 12 && value.length <= 16) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16);
-        } else if (value.length > 16 && value.length <= 20) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16) + '-' + value.slice(16, 20);
-        } else if (value.length > 20) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16) + '-' + value.slice(16, 20) + '-' + value.slice(20, 24);
+        // Auto-format as XXXX-XXXX-XXXX
+        const parts = value.replace(/-/g, '').match(/.{1,4}/g);
+        if (parts) {
+            value = parts.join('-');
         }
         
         input.value = value;
     }
 
     async login() {
-        const userId = document.getElementById('userId').value.trim();
+        const userId = document.getElementById('userId').value.trim().replace(/-/g, '');
         const password = document.getElementById('password').value;
-        const errorMessage = document.getElementById('errorMessage');
-        const loginBtn = document.getElementById('loginBtn');
 
-        // Validation
         if (!userId || !password) {
-            this.showError('Please enter both User ID and password');
+            this.showError('Please enter both Entry ID and password');
             return;
         }
 
-        if (userId.length !== 23 && userId.length !== 24) {
-            this.showError('Invalid User ID format');
+        if (userId.length !== 12) {
+            this.showError('Invalid Entry ID format');
             return;
         }
 
@@ -67,15 +52,16 @@ class LoginPage {
         this.hideError();
 
         try {
-            // In a real app, we'd verify the password
-            // For demo, we'll just authenticate by User ID
-            const result = await this.firebase.signIn(userId);
+            const result = await authenticateUser(userId, password);
 
             if (result.success) {
+                // Save user data to localStorage
+                localStorage.setItem('currentUser', JSON.stringify(result.user));
+                
                 // Redirect to dashboard
                 window.location.href = 'index.html';
             } else {
-                this.showError(result.message || 'Invalid User ID or password');
+                this.showError(result.message || 'Invalid Entry ID or password');
             }
         } catch (error) {
             console.error('Login error:', error);
@@ -108,7 +94,6 @@ class LoginPage {
     }
 }
 
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new LoginPage();
 });
