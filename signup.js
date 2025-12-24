@@ -1,6 +1,7 @@
+import { createUser } from './firebase-service.js';
+
 class SignupPage {
     constructor() {
-        this.firebase = new FirebaseService();
         this.selectedPlan = 'Free';
         this.setupEventListeners();
     }
@@ -15,24 +16,20 @@ class SignupPage {
             await this.signup();
         });
 
-        // Password strength indicator
         passwordInput.addEventListener('input', (e) => {
             this.updatePasswordStrength(e.target.value);
         });
 
-        // Plan selection
         document.querySelectorAll('.plan-option').forEach(option => {
             option.addEventListener('click', () => {
                 this.selectPlan(option);
             });
         });
 
-        // Confirm password validation
-        confirmPasswordInput.addEventListener('input', (e) => {
+        confirmPasswordInput.addEventListener('input', () => {
             this.validatePasswords();
         });
 
-        // Auto-focus first name field
         document.getElementById('firstName').focus();
     }
 
@@ -53,18 +50,13 @@ class SignupPage {
         }
 
         let strength = 0;
-        
-        // Length check
         if (password.length >= 8) strength++;
         if (password.length >= 12) strength++;
-        
-        // Character variety checks
         if (/[a-z]/.test(password)) strength++;
         if (/[A-Z]/.test(password)) strength++;
         if (/[0-9]/.test(password)) strength++;
         if (/[^a-zA-Z0-9]/.test(password)) strength++;
 
-        // Update UI
         if (strength <= 2) {
             strengthBar.className = 'password-strength-bar weak';
         } else if (strength <= 4) {
@@ -94,7 +86,6 @@ class SignupPage {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
-        // Validation
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
             this.showError('Please fill in all fields');
             return;
@@ -119,34 +110,32 @@ class SignupPage {
         this.hideMessages();
 
         try {
-            // Generate unique User ID
-            const userId = await this.firebase.generateUserId();
-            
-            // Create user account (mock implementation)
-            const userData = {
-                id: userId,
+            const result = await createUser({
                 name: `${firstName} ${lastName}`,
                 email: email,
-                plan: this.selectedPlan + ' Plan',
-                memberSince: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-                tasksCompleted: 0,
-                hoursSaved: 0,
-                successRate: 0,
-                password: 'hashed_' + password, // In real app, this would be properly hashed
-                passwordLastChanged: new Date()
-            };
+                password: password,
+                plan: this.selectedPlan + ' Plan'
+            });
 
-            // Store user (mock implementation)
-            this.firebase.users.set(userId, userData);
-
-            // Show success message with User ID
-            this.showSuccessMessage(`Account created successfully! Your User ID is: ${userId}`);
-            this.displayUserId(userId);
-            
-            // Reset form
-            document.getElementById('signupForm').reset();
-            document.getElementById('passwordStrengthBar').className = 'password-strength-bar';
-
+            if (result.success) {
+                this.showSuccessMessage('Account created successfully!');
+                this.displayUserId(result.entryId);
+                document.getElementById('signupForm').reset();
+                document.getElementById('passwordStrengthBar').className = 'password-strength-bar';
+                
+                // Save to localStorage for auto-login
+                localStorage.setItem('pendingLogin', JSON.stringify({
+                    entryId: result.entryId,
+                    userId: result.userId
+                }));
+                
+                // Redirect after 3 seconds
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 3000);
+            } else {
+                this.showError(result.message || 'Failed to create account');
+            }
         } catch (error) {
             console.error('Signup error:', error);
             this.showError('An error occurred during signup. Please try again.');
@@ -160,11 +149,13 @@ class SignupPage {
         return re.test(email);
     }
 
-    displayUserId(userId) {
+    displayUserId(entryId) {
         const userIdDisplay = document.getElementById('userIdDisplay');
         const userIdValue = document.getElementById('userIdValue');
         
-        userIdValue.textContent = userId;
+        // Format as XXXX-XXXX-XXXX
+        const formatted = entryId.match(/.{1,4}/g).join('-');
+        userIdValue.textContent = formatted;
         userIdDisplay.classList.add('show');
     }
 
@@ -203,7 +194,6 @@ class SignupPage {
     }
 }
 
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new SignupPage();
 });
