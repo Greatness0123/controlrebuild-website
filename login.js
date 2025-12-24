@@ -1,6 +1,3 @@
-// Import Firebase service
-import { getUserById } from './firebase-service.js';
-
 class LoginPage {
     constructor() {
         this.setupEventListeners();
