@@ -1,6 +1,3 @@
-// Import Firebase service
-import { getUserById, updateUser } from './firebase-service.js';
-
 class Dashboard {
     constructor() {
         this.currentUser = null;
@@ -104,7 +101,7 @@ class Dashboard {
 
         // Update password info
         const lastChanged = new Date(this.currentUser.passwordLastChanged);
-        const monthsAgo = Math.floor((new Date() - lastChanged) / (1000 * 60 * 60 * 24 * 30));
+        const monthsAgo = Math.floor((Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24 * 30));
         document.getElementById('passwordInfo').textContent = 
             `Last changed ${monthsAgo} month${monthsAgo !== 1 ? 's' : ''} ago`;
     }
