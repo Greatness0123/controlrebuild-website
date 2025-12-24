@@ -1,101 +1,8 @@
-// Import Firebase service
-import { createUser, generateUserId } from './firebase-service.js';
-
-class FirebaseService {
-    constructor() {
-        this.isInitialized = true;
-        this.currentUser = null;
-    }
-
-    async signIn(userId) {
-        try {
-            const { getUserById } = await import('./firebase-service.js');
-            const result = await getUserById(userId);
-            if (result.success) {
-                this.currentUser = result.user;
-                sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-                return { success: true, user: this.currentUser };
-            }
-            return { success: false, message: result.message || 'User not found' };
-        } catch (error) {
-            console.error('Sign in error:', error);
-            return { success: false, message: 'Authentication failed' };
-        }
-    }
-
-    async signOut() {
-        this.currentUser = null;
-        sessionStorage.removeItem('currentUser');
-        return { success: true };
-    }
-
-    async getCurrentUser() {
-        if (this.currentUser) {
-            return this.currentUser;
-        }
-        
-        const stored = sessionStorage.getItem('currentUser');
-        if (stored) {
-            try {
-                const userData = JSON.parse(stored);
-                this.currentUser = userData;
-                return this.currentUser;
-            } catch (error) {
-                console.error('Error parsing stored user data:', error);
-                sessionStorage.removeItem('currentUser');
-                return null;
-            }
-        }
-        
-        return null;
-    }
-
-    async changePassword(userId, currentPassword, newPassword) {
-        try {
-            const { updateUser } = await import('./firebase-service.js');
-            const result = await updateUser(userId, {
-                password: 'hashed_' + newPassword,
-                passwordLastChanged: new Date()
-            });
-
-            if (result.success) {
-                if (this.currentUser && this.currentUser.id === userId) {
-                    this.currentUser.passwordLastChanged = new Date();
-                    sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-                }
-            }
-
-            return result;
-        } catch (error) {
-            console.error('Password change error:', error);
-            return { success: false, message: 'Failed to change password' };
-        }
-    }
-
-    async generateUserId() {
-        try {
-            const { generateUserId: genId } = await import('./firebase-service.js');
-            return await genId();
-        } catch (error) {
-            console.error('Error generating user ID:', error);
-            return this.generateLocalUserId();
-        }
-    }
-
-    generateLocalUserId() {
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        let result = '';
-        for (let i = 0; i < 24; i++) {
-            if (i > 0 && i % 4 === 0) result += '-';
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    }
-}
+// Import Firebase functions
+import { createUser, generateUserId as genUserId } from './firebase-service.js';
 
 class SignupPage {
     constructor() {
-        this.firebase = new FirebaseService();
         this.selectedPlan = 'Free';
         this.setupEventListeners();
     }
@@ -215,7 +122,10 @@ class SignupPage {
 
         try {
             // Generate unique User ID
-            const userId = await this.firebase.generateUserId();
+            const userId = genUserId();
+            
+            console.log('Generating account for:', firstName, lastName, email);
+            console.log('Generated User ID:', userId);
             
             // Create user account in Firebase
             const userData = {
@@ -227,13 +137,15 @@ class SignupPage {
                 tasksCompleted: 0,
                 hoursSaved: 0,
                 successRate: 0,
-                password: 'hashed_' + password, // In real app, this would be properly hashed
+                password: 'hashed_' + password,
                 passwordLastChanged: new Date(),
                 isActive: true
             };
 
             // Call Firebase createUser function
             const result = await createUser(userData);
+
+            console.log('Create user result:', result);
 
             if (result.success) {
                 // Store current user in session
@@ -253,12 +165,12 @@ class SignupPage {
                 }, 3000);
             } else {
                 this.showError(result.message || 'Failed to create account. Please try again.');
+                this.setLoading(false);
             }
 
         } catch (error) {
             console.error('Signup error:', error);
             this.showError('An error occurred during signup. Please try again.');
-        } finally {
             this.setLoading(false);
         }
     }
