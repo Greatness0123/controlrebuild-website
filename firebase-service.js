@@ -1,4 +1,9 @@
-// Firebase Configuration
+// Import Firebase modules
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, query, where, getDocs, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+// Your Firebase Configuration - REPLACE WITH YOUR ACTUAL CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyDSdp2kTxfS1YYxneulH7JeobGbHOdsjgc",
   authDomain: "control-rebuild.firebaseapp.com",
@@ -9,269 +14,35 @@ const firebaseConfig = {
   measurementId: "G-NLFSE2CG06"
 };
 
-// Mock Firebase SDK implementation
-class MockFirebase {
-    constructor() {
-        this.firestore = new MockFirestore();
-        this.auth = new MockAuth();
-    }
-}
-
-class MockFirestore {
-    constructor() {
-        this.collections = new Map();
-        this.initData();
-    }
-
-    initData() {
-        // Initialize with some sample users
-        const users = [
-            {
-                id: 'demo-user-1234-abcd-5678-efgh',
-                name: 'Demo User',
-                email: 'demo@example.com',
-                plan: 'Pro Plan',
-                memberSince: 'Oct 2023',
-                tasksCompleted: 247,
-                hoursSaved: 12.5,
-                successRate: 98,
-                password: 'hashed_demo_password',
-                passwordLastChanged: new Date('2023-10-15'),
-                createdAt: new Date('2023-10-01'),
-                isActive: true
-            },
-            {
-                id: 'test-user-9876-wxyz-4321-stuv',
-                name: 'Test User',
-                email: 'test@example.com',
-                plan: 'Free Plan',
-                memberSince: 'Nov 2023',
-                tasksCompleted: 45,
-                hoursSaved: 2.3,
-                successRate: 92,
-                password: 'hashed_test_password',
-                passwordLastChanged: new Date('2023-11-10'),
-                createdAt: new Date('2023-11-01'),
-                isActive: true
-            }
-        ];
-
-        const usersCollection = users.map(user => ({
-            id: user.id,
-            data: () => ({ ...user }),
-            ...user
-        }));
-
-        this.collections.set('users', usersCollection);
-    }
-
-    collection(name) {
-        return new MockCollection(this.collections.get(name) || []);
-    }
-}
-
-class MockCollection {
-    constructor(data) {
-        this.data = data;
-    }
-
-    where(field, operator, value) {
-        const filtered = this.data.filter(item => {
-            if (operator === '==') {
-                return item[field] === value;
-            } else if (operator === '>=') {
-                return item[field] >= value;
-            }
-            return false;
-        });
-        return new MockCollection(filtered);
-    }
-
-    get() {
-        return Promise.resolve({
-            docs: this.data.map(item => ({
-                id: item.id,
-                data: () => ({ ...item })
-            }))
-        });
-    }
-
-    add(data) {
-        const id = this.generateId();
-        const newItem = { id, ...data };
-        this.data.push(newItem);
-        console.log('User added to database:', newItem);
-        return Promise.resolve({ id });
-    }
-
-    doc(id) {
-        let item = this.data.find(item => item.id === id);
-        return new MockDocument(item, id, this.data);
-    }
-
-    generateId() {
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        let result = '';
-        for (let i = 0; i < 24; i++) {
-            if (i > 0 && i % 4 === 0) result += '-';
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    }
-}
-
-class MockDocument {
-    constructor(data, id, collection) {
-        this.data = data;
-        this.id = id;
-        this.collection = collection;
-    }
-
-    get() {
-        if (this.data) {
-            return Promise.resolve({
-                exists: true,
-                id: this.id,
-                data: () => ({ ...this.data })
-            });
-        } else {
-            return Promise.resolve({
-                exists: false,
-                id: this.id,
-                data: () => ({})
-            });
-        }
-    }
-
-    set(data) {
-        this.data = { id: this.id, ...data };
-        const index = this.collection.findIndex(item => item.id === this.id);
-        if (index > -1) {
-            this.collection[index] = this.data;
-        } else {
-            this.collection.push(this.data);
-        }
-        console.log('Document set:', this.data);
-        return Promise.resolve();
-    }
-
-    update(data) {
-        if (this.data) {
-            Object.assign(this.data, data);
-            console.log('Document updated:', this.data);
-        }
-        return Promise.resolve();
-    }
-
-    delete() {
-        const index = this.collection.findIndex(item => item.id === this.id);
-        if (index > -1) {
-            this.collection.splice(index, 1);
-        }
-        return Promise.resolve();
-    }
-}
-
-class MockAuth {
-    constructor() {
-        this.currentUser = null;
-    }
-
-    signInWithEmailAndPassword(email, password) {
-        return Promise.resolve({
-            user: {
-                uid: 'demo-user-1234-abcd-5678-efgh',
-                email: email
-            }
-        });
-    }
-
-    createUserWithEmailAndPassword(email, password) {
-        return Promise.resolve({
-            user: {
-                uid: 'new-user-' + Date.now(),
-                email: email
-            }
-        });
-    }
-
-    signOut() {
-        this.currentUser = null;
-        return Promise.resolve();
-    }
-
-    onAuthStateChanged(callback) {
-        callback(null);
-    }
-}
-
 // Initialize Firebase
-const firebase = new MockFirebase();
-const db = firebase.firestore;
-const auth = firebase.auth;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// User management functions
-async function getUserById(userId) {
+// User authentication and management functions
+export async function signUpUser(email, password, userData) {
     try {
-        const doc = await db.collection('users').doc(userId).get();
-        if (doc.exists) {
-            return {
-                success: true,
-                user: doc.data()
-            };
-        } else {
-            return {
-                success: false,
-                message: 'User not found'
-            };
-        }
-    } catch (error) {
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
+        // Create user in Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userId = userCredential.user.uid;
 
-async function getUserByEmail(email) {
-    try {
-        const collection = db.collection('users');
-        const result = await collection.where('email', '==', email).get();
-        
-        if (result.docs && result.docs.length > 0) {
-            return {
-                success: true,
-                user: result.docs[0].data()
-            };
-        } else {
-            return {
-                success: false,
-                message: 'User not found'
-            };
-        }
-    } catch (error) {
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
-
-async function createUser(userData) {
-    try {
-        await db.collection('users').doc(userData.id).set({
+        // Save user data to Firestore
+        await setDoc(doc(db, "users", userId), {
+            id: userId,
+            email: email,
             ...userData,
             createdAt: new Date(),
             isActive: true
         });
-        
-        console.log('User created successfully with ID:', userData.id);
+
+        console.log("User created successfully:", userId);
         return {
             success: true,
-            userId: userData.id
+            userId: userId,
+            user: userCredential.user
         };
     } catch (error) {
-        console.error('Error creating user:', error);
+        console.error("Signup error:", error);
         return {
             success: false,
             message: error.message
@@ -279,16 +50,98 @@ async function createUser(userData) {
     }
 }
 
-async function updateUser(userId, updateData) {
+export async function signInUser(email, password) {
     try {
-        await db.collection('users').doc(userId).update({
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userId = userCredential.user.uid;
+
+        // Get user data from Firestore
+        const userDoc = await getDoc(doc(db, "users", userId));
+        
+        if (userDoc.exists()) {
+            return {
+                success: true,
+                user: userDoc.data()
+            };
+        } else {
+            return {
+                success: false,
+                message: "User data not found"
+            };
+        }
+    } catch (error) {
+        console.error("Login error:", error);
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+export async function signOutUser() {
+    try {
+        await signOut(auth);
+        return { success: true };
+    } catch (error) {
+        console.error("Logout error:", error);
+        return { success: false, message: error.message };
+    }
+}
+
+export async function getUserById(userId) {
+    try {
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+            return {
+                success: true,
+                user: userDoc.data()
+            };
+        } else {
+            return {
+                success: false,
+                message: "User not found"
+            };
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+export async function getUserByEmail(email) {
+    try {
+        const q = query(collection(db, "users"), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+            return {
+                success: true,
+                user: querySnapshot.docs[0].data()
+            };
+        } else {
+            return {
+                success: false,
+                message: "User not found"
+            };
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+export async function updateUser(userId, updateData) {
+    try {
+        await updateDoc(doc(db, "users", userId), {
             ...updateData,
             updatedAt: new Date()
         });
         
-        return {
-            success: true
-        };
+        return { success: true };
     } catch (error) {
         return {
             success: false,
@@ -297,19 +150,7 @@ async function updateUser(userId, updateData) {
     }
 }
 
-async function authenticateUser(userId) {
-    try {
-        const result = await getUserById(userId);
-        return result;
-    } catch (error) {
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
-
-function generateUserId() {
+export function generateUserId() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < 24; i++) {
@@ -318,3 +159,5 @@ function generateUserId() {
     }
     return result;
 }
+
+export { auth, db };
