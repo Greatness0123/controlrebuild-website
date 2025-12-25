@@ -1,3 +1,5 @@
+import { signUpUser, generateUserId } from './firebase-service.js';
+
 class SignupPage {
     constructor() {
         this.selectedPlan = 'Free';
@@ -53,17 +55,13 @@ class SignupPage {
 
         let strength = 0;
         
-        // Length check
         if (password.length >= 8) strength++;
         if (password.length >= 12) strength++;
-        
-        // Character variety checks
         if (/[a-z]/.test(password)) strength++;
         if (/[A-Z]/.test(password)) strength++;
         if (/[0-9]/.test(password)) strength++;
         if (/[^a-zA-Z0-9]/.test(password)) strength++;
 
-        // Update UI
         if (strength <= 2) {
             strengthBar.className = 'password-strength-bar weak';
         } else if (strength <= 4) {
@@ -118,15 +116,7 @@ class SignupPage {
         this.hideMessages();
 
         try {
-            // Generate unique User ID
-            const userId = generateUserId();
-            
-            console.log('Generating account for:', firstName, lastName, email);
-            console.log('Generated User ID:', userId);
-            
-            // Create user account in Firebase
             const userData = {
-                id: userId,
                 name: `${firstName} ${lastName}`,
                 email: email,
                 plan: this.selectedPlan + ' Plan',
@@ -134,19 +124,20 @@ class SignupPage {
                 tasksCompleted: 0,
                 hoursSaved: 0,
                 successRate: 0,
-                password: 'hashed_' + password,
                 passwordLastChanged: new Date(),
-                isActive: true
             };
 
-            // Call Firebase createUser function
-            const result = await createUser(userData);
-
-            console.log('Create user result:', result);
+            // Create user in Firebase
+            const result = await signUpUser(email, password, userData);
 
             if (result.success) {
+                const userId = result.userId;
+                
                 // Store current user in session
-                sessionStorage.setItem('currentUser', JSON.stringify(userData));
+                sessionStorage.setItem('currentUser', JSON.stringify({
+                    ...userData,
+                    id: userId
+                }));
 
                 // Show success message with User ID
                 this.showSuccessMessage(`Account created successfully! Your User ID is: ${userId}`);
