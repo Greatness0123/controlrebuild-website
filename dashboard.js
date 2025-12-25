@@ -1,3 +1,5 @@
+import { getUserById, updateUser, signOutUser } from './firebase-service.js';
+
 class Dashboard {
     constructor() {
         this.currentUser = null;
@@ -10,7 +12,6 @@ class Dashboard {
         
         if (!this.currentUser) {
             console.log('No user found, redirecting to signup');
-            // Redirect to signup if not authenticated
             window.location.href = 'signup.html';
             return;
         }
@@ -31,7 +32,6 @@ class Dashboard {
                 if (result.success) {
                     return result.user;
                 } else {
-                    // User no longer exists, clear session
                     sessionStorage.removeItem('currentUser');
                     return null;
                 }
@@ -112,7 +112,6 @@ class Dashboard {
         navigator.clipboard.writeText(text).then(() => {
             this.showToast('User ID copied to clipboard!', 'success');
         }).catch(() => {
-            // Fallback for older browsers
             const textArea = document.createElement('textarea');
             textArea.value = text;
             document.body.appendChild(textArea);
@@ -133,7 +132,6 @@ class Dashboard {
     }
 
     async changePassword() {
-        const currentPassword = document.getElementById('currentPassword').value;
         const newPassword = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
@@ -150,18 +148,16 @@ class Dashboard {
 
         try {
             const result = await updateUser(this.currentUser.id, {
-                password: 'hashed_' + newPassword,
                 passwordLastChanged: new Date()
             });
 
             if (result.success) {
-                // Update cached user data
                 this.currentUser.passwordLastChanged = new Date();
                 sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
                 
                 this.showToast('Password changed successfully!', 'success');
                 this.hidePasswordModal();
-                this.updateUI(); // Update the "last changed" text
+                this.updateUI();
             } else {
                 this.showToast(result.message || 'Failed to change password', 'error');
             }
@@ -173,6 +169,7 @@ class Dashboard {
 
     async logout() {
         try {
+            await signOutUser();
             sessionStorage.removeItem('currentUser');
             this.showToast('Logged out successfully', 'success');
             setTimeout(() => {
