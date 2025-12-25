@@ -151,11 +151,10 @@ export async function updateUser(userId, updateData) {
 }
 
 export function generateUserId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    // Generate a 12-digit ID with numbers only
     let result = '';
-    for (let i = 0; i < 24; i++) {
-        if (i > 0 && i % 4 === 0) result += '-';
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < 12; i++) {
+        result += Math.floor(Math.random() * 10);
     }
     return result;
 }
