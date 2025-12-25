@@ -153,6 +153,21 @@
             display: block;
         }
 
+        .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+            color: #4ade80;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
         .loading-spinner {
             display: none;
             width: 20px;
@@ -176,7 +191,6 @@
             display: inline-block;
         }
     </style>
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
 <body>
     <div class="auth-container">
@@ -186,24 +200,25 @@
         </div>
 
         <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
 
         <form class="auth-form" id="loginForm">
             <div class="form-group">
-                <label class="form-label" for="userId">User ID</label>
+                <label class="form-label" for="loginEmail">Email Address</label>
                 <input 
-                    type="text" 
-                    id="userId" 
+                    type="email" 
+                    id="loginEmail" 
                     class="form-input" 
-                    placeholder="Enter your User ID"
+                    placeholder="Enter your email"
                     required
                 >
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="password">Password</label>
+                <label class="form-label" for="loginPassword">Password</label>
                 <input 
                     type="password" 
-                    id="password" 
+                    id="loginPassword" 
                     class="form-input" 
                     placeholder="Enter your password"
                     required
@@ -221,7 +236,7 @@
         </div>
     </div>
 
-    <script src="login.js"></script>
     <script src="firebase-service.js"></script>
+    <script src="login.js"></script>
 </body>
 </html>
