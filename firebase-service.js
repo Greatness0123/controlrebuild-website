@@ -13,6 +13,7 @@ const firebaseConfig = {
   appId: "1:978116999118:web:924c440301d9d30adcdd9f",
   measurementId: "G-NLFSE2CG06"
 };
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -56,20 +57,40 @@ export async function signUpUser(email, password, userData) {
 export async function signInUser(email, password) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const userId = userCredential.user.uid;
-
-        // Get user data from Firestore
-        const userDoc = await getDoc(doc(db, "users", userId));
         
-        if (userDoc.exists()) {
+        // Query Firestore to find user by email
+        const q = query(collection(db, "users"), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data();
             return {
                 success: true,
-                user: userDoc.data()
+                user: userData
             };
         } else {
+            // Create user profile if it doesn't exist
+            const customUserId = generateUserId();
+            const newUserData = {
+                id: customUserId,
+                firebaseUid: userCredential.user.uid,
+                email: email,
+                name: email.split('@')[0],
+                plan: 'Free Plan',
+                memberSince: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                tasksCompleted: 0,
+                hoursSaved: 0,
+                successRate: 0,
+                passwordLastChanged: new Date(),
+                isActive: true,
+                createdAt: new Date()
+            };
+            
+            await setDoc(doc(db, "users", customUserId), newUserData);
+            
             return {
-                success: false,
-                message: "User data not found"
+                success: true,
+                user: newUserData
             };
         }
     } catch (error) {
