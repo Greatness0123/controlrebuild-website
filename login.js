@@ -5,52 +5,30 @@ class LoginPage {
 
     setupEventListeners() {
         const loginForm = document.getElementById('loginForm');
-        const userIdInput = document.getElementById('userId');
-        const passwordInput = document.getElementById('password');
+        const emailInput = document.getElementById('loginEmail');
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.login();
         });
 
-        // Auto-focus user ID field
-        userIdInput.focus();
-
-        // Format user ID as user types
-        userIdInput.addEventListener('input', (e) => {
-            this.formatUserId(e.target);
-        });
-    }
-
-    formatUserId(input) {
-        // Remove non-alphanumeric characters except hyphens
-        let value = input.value.replace(/[^A-Za-z0-9-]/g, '').toLowerCase();
-        
-        // Auto-format as xxxx-xxxx-xxxx-xxxx-xxxx-xxxx (24 chars with hyphens)
-        if (value.length > 4 && value.length <= 8) {
-            value = value.slice(0, 4) + '-' + value.slice(4);
-        } else if (value.length > 8 && value.length <= 12) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
-        } else if (value.length > 12 && value.length <= 16) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16);
-        } else if (value.length > 16 && value.length <= 20) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16) + '-' + value.slice(16, 20);
-        } else if (value.length > 20) {
-            value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12) + '-' + value.slice(12, 16) + '-' + value.slice(16, 20) + '-' + value.slice(20, 24);
-        }
-        
-        input.value = value;
+        // Auto-focus email field
+        emailInput.focus();
     }
 
     async login() {
-        const userId = document.getElementById('userId').value.trim();
-        const password = document.getElementById('password').value;
-        const errorMessage = document.getElementById('errorMessage');
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
         const loginBtn = document.getElementById('loginBtn');
 
         // Validation
-        if (!userId || !password) {
-            this.showError('Please enter both User ID and password');
+        if (!email || !password) {
+            this.showError('Please enter both email and password');
+            return;
+        }
+
+        if (!this.validateEmail(email)) {
+            this.showError('Please enter a valid email address');
             return;
         }
 
@@ -58,10 +36,10 @@ class LoginPage {
         this.hideError();
 
         try {
-            console.log('Attempting login with User ID:', userId);
+            console.log('Attempting login with email:', email);
             
-            // Get user from database
-            const result = await getUserById(userId);
+            // Get user from database by email
+            const result = await getUserByEmail(email);
 
             console.log('Login result:', result);
 
@@ -73,10 +51,13 @@ class LoginPage {
 
                 console.log('User found and logged in:', user.name);
                 
+                this.showSuccess('Login successful!');
                 // Redirect to dashboard
-                window.location.href = 'index.html';
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
             } else {
-                this.showError('Invalid User ID or password');
+                this.showError('Invalid email or password');
                 this.setLoading(false);
             }
         } catch (error) {
@@ -84,6 +65,10 @@ class LoginPage {
             this.showError('An error occurred during login. Please try again.');
             this.setLoading(false);
         }
+    }
+
+    validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
 
     setLoading(loading) {
@@ -106,6 +91,14 @@ class LoginPage {
     hideError() {
         const errorMessage = document.getElementById('errorMessage');
         errorMessage.classList.remove('show');
+    }
+
+    showSuccess(message) {
+        const successMessage = document.getElementById('successMessage');
+        if (successMessage) {
+            successMessage.textContent = message;
+            successMessage.classList.add('show');
+        }
     }
 }
 
