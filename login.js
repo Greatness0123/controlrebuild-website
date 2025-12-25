@@ -1,3 +1,5 @@
+import { signInUser } from './firebase-service.js';
+
 class LoginPage {
     constructor() {
         this.setupEventListeners();
@@ -38,8 +40,8 @@ class LoginPage {
         try {
             console.log('Attempting login with email:', email);
             
-            // Get user from database by email
-            const result = await getUserByEmail(email);
+            // Sign in with Firebase
+            const result = await signInUser(email, password);
 
             console.log('Login result:', result);
 
@@ -49,7 +51,7 @@ class LoginPage {
                 // Store user in session
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
 
-                console.log('User found and logged in:', user.name);
+                console.log('User logged in:', user.name);
                 
                 this.showSuccess('Login successful!');
                 // Redirect to dashboard
@@ -57,7 +59,7 @@ class LoginPage {
                     window.location.href = 'index.html';
                 }, 500);
             } else {
-                this.showError('Invalid email or password');
+                this.showError(result.message || 'Invalid email or password');
                 this.setLoading(false);
             }
         } catch (error) {
