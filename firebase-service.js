@@ -233,6 +233,30 @@ async function getUserById(userId) {
     }
 }
 
+async function getUserByEmail(email) {
+    try {
+        const collection = db.collection('users');
+        const result = await collection.where('email', '==', email).get();
+        
+        if (result.docs && result.docs.length > 0) {
+            return {
+                success: true,
+                user: result.docs[0].data()
+            };
+        } else {
+            return {
+                success: false,
+                message: 'User not found'
+            };
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
 async function createUser(userData) {
     try {
         await db.collection('users').doc(userData.id).set({
