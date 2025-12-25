@@ -59,12 +59,13 @@ class LoginPage {
                     window.location.href = 'index.html';
                 }, 500);
             } else {
+                console.error('Login failed:', result.message);
                 this.showError(result.message || 'Invalid email or password');
                 this.setLoading(false);
             }
         } catch (error) {
             console.error('Login error:', error);
-            this.showError('An error occurred during login. Please try again.');
+            this.showError(error.message || 'An error occurred during login. Please try again.');
             this.setLoading(false);
         }
     }
