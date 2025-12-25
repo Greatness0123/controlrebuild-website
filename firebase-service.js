@@ -13,7 +13,6 @@ const firebaseConfig = {
   appId: "1:978116999118:web:924c440301d9d30adcdd9f",
   measurementId: "G-NLFSE2CG06"
 };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -24,21 +23,25 @@ export async function signUpUser(email, password, userData) {
     try {
         // Create user in Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const userId = userCredential.user.uid;
+        const firebaseUid = userCredential.user.uid;
+        
+        // Generate custom 12-digit ID
+        const customUserId = generateUserId();
 
-        // Save user data to Firestore
-        await setDoc(doc(db, "users", userId), {
-            id: userId,
+        // Save user data to Firestore with custom ID as document
+        await setDoc(doc(db, "users", customUserId), {
+            id: customUserId,
+            firebaseUid: firebaseUid,
             email: email,
             ...userData,
             createdAt: new Date(),
             isActive: true
         });
 
-        console.log("User created successfully:", userId);
+        console.log("User created successfully with ID:", customUserId);
         return {
             success: true,
-            userId: userId,
+            userId: customUserId,
             user: userCredential.user
         };
     } catch (error) {
